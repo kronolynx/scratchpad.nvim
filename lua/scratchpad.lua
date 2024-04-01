@@ -5,16 +5,48 @@ local fn = vim.fn
 --- @field id number?
 --- @field title string?
 --- @field title_pos string?
---- @field filetype string?
+--- @field file_ext string?
+--- @field file_name string
+--- @field notes_dir string?
 --- @field bufnr number
 --- @field window number
 --- @field ui_opts table<string, any>?
 local Scratchpad = {}
 
+function Scratchpad:path(opts)
+  if opts.notes_dir then
+    local first_char = string.sub(opts.notes_dir, 1, 1)
+    if first_char == "~" then
+      return vim.fn.expand(opts.notes_dir)
+    elseif first_char == "/" then
+      return opts.notes_dir
+    else
+      return vim.fn.expand("~") .. opts.notes_dir
+    end
+  else
+    return vim.fn.stdpath("data") .. "/scratch_notes"
+  end
+end
+
+function Scratchpad:name_with_path(opts)
+  local notes_dir = self:path(opts)
+  local cwd = vim.fn.getcwd()
+  if not vim.fn.isdirectory(notes_dir) ~= 0 then
+    -- TODO check if error
+    vim.fn.mkdir(notes_dir, "p")
+  end
+  -- TODO keep a map of names maybe from the hash of cwd to file names to avoid collitions
+  local file_ext = opts.file_ext or "md"
+  local workin_dir = vim.fn.fnamemodify(cwd, ":t")
+  local file_name = workin_dir .. "-notes" -- TODO configure in settings if we want a sufix
+  return notes_dir .. "/" .. file_name .. "." .. file_ext
+end
+
 function Scratchpad:new(opts)
   opts = opts or {}
   opts.title = opts.title or "*scratchpad*"
-  opts.filetype = opts.filetype or "markdown"
+  -- TODO display in window title the name of the file ? (no extension)
+  opts.file_name = self:name_with_path(opts)
   self.__index = self
   return setmetatable(opts, self)
 end
@@ -40,9 +72,9 @@ function Scratchpad:open()
   local valid_buf = self.bufnr and api.nvim_buf_is_valid(self.bufnr)
   local buf = valid_buf and self.bufnr or api.nvim_create_buf(false, false)
   local win = api.nvim_open_win(buf, true, self:_get_float_config())
-
   self.window, self.bufnr = win, buf
-  api.nvim_buf_set_option(buf, 'filetype', self.filetype)
+  vim.cmd("edit " .. self.file_name)
+  api.nvim_set_option_value("bufhidden", "wipe", { buf = buf })
   api.nvim_set_option_value("sidescrolloff", 0, { scope = "local", win = win })
 end
 
