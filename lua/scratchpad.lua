@@ -79,6 +79,9 @@ function Scratchpad:open()
 end
 
 function Scratchpad:close()
+  if self.bufnr and api.nvim_buf_get_option(self.bufnr, "modified") then
+    vim.cmd("w " .. self.file_name)
+  end
   if self.window and api.nvim_win_is_valid(self.window) then
     api.nvim_win_close(self.window, true)
     self.window = nil
