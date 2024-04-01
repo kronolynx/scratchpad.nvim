@@ -4,7 +4,8 @@ local fn = vim.fn
 --- @class Scratchpad
 --- @field id number?
 --- @field title string?
---- @field display_name string?
+--- @field title_pos string?
+--- @field filetype string?
 --- @field bufnr number
 --- @field window number
 --- @field ui_opts table<string, any>?
@@ -12,8 +13,8 @@ local Scratchpad = {}
 
 function Scratchpad:new(opts)
   opts = opts or {}
-  opts.title = opts.title or "-- Scratchpad!"
-  opts.display_name = opts.display_name or "*scratch*"
+  opts.title = opts.title or "*scratchpad*"
+  opts.filetype = opts.filetype or "markdown"
   self.__index = self
   return setmetatable(opts, self)
 end
@@ -38,10 +39,10 @@ end
 function Scratchpad:open()
   local valid_buf = self.bufnr and api.nvim_buf_is_valid(self.bufnr)
   local buf = valid_buf and self.bufnr or api.nvim_create_buf(false, false)
-  local win = api.nvim_open_win(buf, true, self:_get_float_config(true))
+  local win = api.nvim_open_win(buf, true, self:_get_float_config())
 
   self.window, self.bufnr = win, buf
-  api.nvim_buf_set_option(buf, 'filetype', 'markdown')
+  api.nvim_buf_set_option(buf, 'filetype', self.filetype)
   api.nvim_set_option_value("sidescrolloff", 0, { scope = "local", win = win })
 end
 
@@ -63,10 +64,9 @@ end
 
 local curved = { "╭", "─", "╮", "│", "╯", "─", "╰", "│" }
 
---- @private
---- @param opening boolean
 --- copied from https://github.com/akinsho/toggleterm.nvim/blob/193786e0371e3286d3bc9aa0079da1cd41beaa62/lua/toggleterm/ui.lua#L272
-function Scratchpad:_get_float_config(opening)
+--- @private
+function Scratchpad:_get_float_config()
   local opts = self.ui_opts or {}
   local border = opts.border == "curved" and curved or opts.border or "single"
 
@@ -91,12 +91,12 @@ function Scratchpad:_get_float_config(opening)
     style = nil,
     width = width,
     height = height,
-    border = opening and border or nil,
+    border = border or nil,
     zindex = opts.zindex or nil,
   }
   if version.major > 0 or version.minor >= 9 then
-    ui_config.title_pos = self.display_name and opts.title_pos or nil
-    ui_config.title = self.display_name -- TODO should I use title
+    ui_config.title_pos = self.title and self.title_pos or nil
+    ui_config.title = self.title
   end
   return ui_config
 end
@@ -105,7 +105,6 @@ end
 local current = {}
 
 local function setup(opts)
-  opts = opts or {}
   current = Scratchpad:new(opts)
 
   api.nvim_create_user_command(
@@ -113,7 +112,6 @@ local function setup(opts)
     function() current:toggle() end,
     {}
   )
-
 end
 
 return { setup = setup }
