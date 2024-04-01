@@ -104,17 +104,16 @@ end
 -- @type Notepad
 local current = {}
 
-local toggle_command = function(opts)
-  if not current.bufnr then
-    current = Scratchpad:new(opts)
-  end
-  current:toggle()
-end
-
 local function setup(opts)
   opts = opts or {}
+  current = Scratchpad:new(opts)
 
-  vim.keymap.set("n", opts.lhs or "<F3>", function() toggle_command(opts) end, { desc = "scratchpad" })
+  api.nvim_create_user_command(
+    "ScratchpadToggle",
+    function() current:toggle() end,
+    {}
+  )
+
 end
 
 return { setup = setup }
